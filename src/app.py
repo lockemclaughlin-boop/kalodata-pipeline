@@ -53,7 +53,10 @@ def _render_results_gallery(manifest_path: Path) -> None:
     if not manifest_path.exists():
         return
     manifest = json.loads(manifest_path.read_text())
-    run_id = manifest.get("run_id", manifest_path.parent.name)
+    # Use the output DIRECTORY name (e.g. "20260519-...-flow"), not the
+    # manifest's bare run_id field — regenerate_product.py needs the real
+    # folder name to locate the run on disk.
+    run_id = manifest_path.parent.name
     items = manifest.get("products", [])
     st.markdown(f"### Results — run `{run_id}`")
 

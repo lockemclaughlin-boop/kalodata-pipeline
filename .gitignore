@@ -2,6 +2,7 @@
 .auth/
 runs.db
 outputs/
+Generations/
 __pycache__/
 *.pyc
 .venv/

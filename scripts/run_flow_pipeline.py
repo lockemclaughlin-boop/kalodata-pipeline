@@ -55,6 +55,7 @@ from src.generators.hooks import (  # noqa: E402
     sanitize_prompt_for_rai,
 )
 from src.generators.nano_banana import restage_product  # noqa: E402
+from src.exporter import export_to_generations  # noqa: E402
 from src.pipeline import (  # noqa: E402
     PROMPT_NANO, PROMPT_VEO, SELECTION_PATH,
     VARIANTS_PER_PRODUCT, _download_cover, _ext_from_url,
@@ -448,6 +449,13 @@ def run(
 
     manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
     _persist(manifest, manifest_path)
+
+    # Export a clean, human-facing copy of the finished videos into
+    # Generations/<date> <time> <region>/.
+    try:
+        export_to_generations(manifest_path)
+    except Exception as e:
+        _log(f"[flow-pipeline] export to Generations/ failed: {e}")
 
     n_ok = sum(1 for p in manifest["products"] if p.get("status") == "ok")
     n_clips = sum(1 for p in manifest["products"]
