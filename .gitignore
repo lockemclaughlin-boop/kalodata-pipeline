@@ -1,0 +1,9 @@
+.env
+.auth/
+runs.db
+outputs/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.claude/

@@ -1,0 +1,27 @@
+# Saved filter combos the client picks from in the Streamlit UI.
+# Add/remove/edit freely. Each preset must have a unique `name`.
+
+presets:
+  - name: "US Beauty — Last 7d, $10k+ GMV"
+    region: US
+    category: Beauty
+    time_window: last_7_days
+    min_gmv_usd: 10000
+    min_sales: 100
+    min_growth_pct: 0
+
+  - name: "US Home — Trending This Week"
+    region: US
+    category: Home
+    time_window: last_7_days
+    min_gmv_usd: 5000
+    min_sales: 50
+    min_growth_pct: 50
+
+  - name: "UK Fashion — Last 24h"
+    region: UK
+    category: Fashion
+    time_window: last_24_hours
+    min_gmv_usd: 2000
+    min_sales: 25
+    min_growth_pct: 0

@@ -1,0 +1,63 @@
+# Defaults the Streamlit UI loads on launch. The client can override per-run.
+
+selection:
+  default_top_n: 10
+  rank_by: gmv          # gmv | sales | growth_pct
+
+generation:
+  image_model: gemini-2.5-flash-image
+
+  # Pick which video backend the pipeline uses. Both implement the same
+  # generate_video() signature so swapping is a config change, not a code change.
+  #   flow_playwright → src/generators/flow.py — drives Google Flow UI,
+  #                     cheapest at ~$0.42/clip on AI Ultra subscription, but
+  #                     Playwright-fragile and ToS gray area
+  #   veo_api_fast    → src/generators/veo.py with veo-3.0-fast-generate-001
+  #                     ($1.20/clip, full API, no ToS risk)
+  #   veo_api_light   → src/generators/veo.py with veo-3.1-light
+  #                     ($0.40/clip, lower polish, full API)
+  #   veo_api_standard→ src/generators/veo.py with veo-3.0-generate-001
+  #                     ($3.20/clip, only if Fast underdelivers)
+  video_backend: veo_api_fast
+
+  video_duration_seconds: 8
+  video_aspect_ratio: "9:16"
+
+  # Flow-specific
+  flow:
+    model: veo-3.1-lite          # cheapest Veo 3.1 tier — ~10 credits / 8s on Ultra
+    storage_state_path: .auth/flow.json   # legacy field, unused (we use the shared persistent profile)
+    delay_seconds_min: 15        # Human-pace delay between clips
+    delay_seconds_max: 60
+    parallel_video_jobs: 3       # Concurrent Chrome tabs in run_flow_pipeline.py.
+                                 # Veo's per-account compute cap likely throttles
+                                 # actual concurrency to ~3. Raising past that
+                                 # leaves tabs idle in Veo's queue while still
+                                 # eating Chrome memory. Override per-run via
+                                 # `--max-concurrent N`.
+
+  # API-specific (used by veo_api_* backends)
+  api:
+    fast_model: veo-3.0-fast-generate-001
+    light_model: veo-3.1-light
+    standard_model: veo-3.0-generate-001
+    parallel_video_jobs: 4
+
+costs:
+  # Used by the UI to estimate run cost before the client clicks Generate.
+  # Verify against ai.google.dev/gemini-api/docs/pricing periodically.
+  image_per_call_usd: 0.04
+
+  # Per-clip cost by backend. The UI picks the right one based on video_backend.
+  video_per_clip_usd:
+    flow_playwright: 0.42        # AI Ultra $249.99/mo at 600 clips/mo
+    veo_api_fast:    1.20        # $0.15/sec * 8s
+    veo_api_light:   0.40        # $0.05/sec * 8s
+    veo_api_standard: 3.20       # $0.40/sec * 8s
+
+scraper:
+  headed: true
+  min_delay_seconds: 2
+  max_delay_seconds: 6
+  max_products_per_session: 150
+  storage_state_path: .auth/kalodata.json

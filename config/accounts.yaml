@@ -1,0 +1,32 @@
+# Posting accounts. The dashboard's "Assign run to account" dropdown reads
+# this. Each account gets its own folder under outputs/_posted/<slug>/<run-id>/
+# when you assign a run, with MP4s copied in and a sidecar .json per variant
+# capturing hook, caption, and the computed affiliate link.
+#
+# Schema per entry:
+#   handle                  — internal id (slugified for the folder name)
+#   platform                — tiktok | instagram | youtube | threads | x | other
+#   display_name            — short label shown in the dashboard dropdown
+#   affiliate_tag           — your TikTok Shop affiliate code (fill in)
+#   affiliate_url_template  — Python format string. Available placeholders:
+#                             {product_id}, {affiliate_tag}, {kalodata_url}.
+#                             Default targets shop.tiktok.com/view/product/.
+
+accounts:
+  - handle: "uk"
+    platform: tiktok
+    display_name: "UK"
+    affiliate_tag: ""            # ← fill in your UK TikTok Shop affiliate code
+    affiliate_url_template: "https://shop.tiktok.com/view/product/{product_id}?affiliate={affiliate_tag}"
+
+  - handle: "us1"
+    platform: tiktok
+    display_name: "US 1"
+    affiliate_tag: ""            # ← fill in your US 1 affiliate code
+    affiliate_url_template: "https://shop.tiktok.com/view/product/{product_id}?affiliate={affiliate_tag}"
+
+  - handle: "us2"
+    platform: tiktok
+    display_name: "US 2"
+    affiliate_tag: ""            # ← fill in your US 2 affiliate code
+    affiliate_url_template: "https://shop.tiktok.com/view/product/{product_id}?affiliate={affiliate_tag}"
