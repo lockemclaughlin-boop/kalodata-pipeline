@@ -50,6 +50,20 @@ def main() -> None:
     ap.add_argument("--min-growth", type=float, default=0)
     ap.add_argument("--min-creators", type=int, default=0,
                     help="Creator Number filter — minimum creators promoting (0 = no filter).")
+    ap.add_argument("--min-avg-price", type=float, default=0,
+                    help="Avg. Unit Price($) filter — minimum USD (0 = no filter).")
+    ap.add_argument("--min-creator-conv", type=float, default=0,
+                    help="Creator Conversion Ratio filter — minimum %% (0 = no filter).")
+    ap.add_argument("--min-commission", type=float, default=0,
+                    help="Commission Rate filter — minimum %% (0 = no filter).")
+    ap.add_argument("--revenue-source-channel", default="",
+                    help="Revenue Source(Channel): Self-Operated Accounts | Affiliate | Shopping Mall")
+    ap.add_argument("--is-affiliate", default="",
+                    help="Is Affiliate Product: Yes | No")
+    ap.add_argument("--shipping-option", default="",
+                    help="Shipping Option: Ship From Local | Ship From Overseas")
+    ap.add_argument("--launch-date", default="",
+                    help="Launch Date: Within 3/7/30/180/365 Days")
     ap.add_argument("--max-results", type=int, default=50)
     ap.add_argument(
         "--out-dir",
@@ -90,6 +104,13 @@ def main() -> None:
         min_sales=args.min_sales,
         min_growth_pct=args.min_growth,
         min_creators=args.min_creators,
+        min_avg_price=args.min_avg_price,
+        min_creator_conv=args.min_creator_conv,
+        min_commission_pct=args.min_commission,
+        revenue_source_channel=args.revenue_source_channel,
+        is_affiliate=args.is_affiliate,
+        shipping_option=args.shipping_option,
+        launch_date=args.launch_date,
     )
     print(f"[smoke] filters: {filters}")
 

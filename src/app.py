@@ -497,47 +497,47 @@ GROWTH_BUCKETS = {
     ">100%":   100,
 }
 
-REVENUE_SOURCE_CONTENT_OPTIONS = ["Any", "Video", "LIVE", "Product Card"]
-REVENUE_SOURCE_CHANNEL_OPTIONS = ["Any", "Creator", "Shop", "Mall", "Affiliate"]
+# Option/bucket lists below mirror Kalodata's ACTUAL filter popovers
+# (verified against the live UI 2026-05-21). The bucket-dict values are
+# minimum thresholds; the scraper maps them onto Kalodata's coarse brackets.
+REVENUE_SOURCE_CONTENT_OPTIONS = ["Any", "Video", "LIVE", "Product Card"]  # not wired — non-standard widget
+REVENUE_SOURCE_CHANNEL_OPTIONS = ["Any", "Self-Operated Accounts", "Affiliate", "Shopping Mall"]
 
 AVG_UNIT_PRICE_BUCKETS = {
-    "Any":      0,
-    "$5+":      5,
-    "$10+":     10,
-    "$25+":     25,
-    "$50+":     50,
-    "$100+":    100,
+    "Any":   0,
+    "$5+":   5,
+    "$20+":  20,
+    "$100+": 100,
 }
 
 COMMISSION_RATE_BUCKETS = {
-    "Any":    0,
-    "5%+":    5,
-    "10%+":   10,
-    "20%+":   20,
-    "30%+":   30,
-    "50%+":   50,
+    "Any":   0,
+    "10%+":  10,
+    "15%+":  15,
+    "20%+":  20,
+    "30%+":  30,
 }
 
 CREATOR_NUMBER_BUCKETS = {
     "Any":   0,
     "10+":   10,
     "50+":   50,
-    "100+":  100,
-    "500+":  500,
-    "1k+":   1_000,
+    "200+":  200,
 }
 
 CREATOR_CONVERSION_BUCKETS = {
-    "Any":    0,
-    "1%+":    1,
-    "2%+":    2,
-    "5%+":    5,
-    "10%+":   10,
+    "Any":   0,
+    "20%+":  20,
+    "45%+":  45,
+    "75%+":  75,
 }
 
-SHIPPING_OPTIONS = ["Any", "Free Shipping", "Express", "Standard"]
+SHIPPING_OPTIONS = ["Any", "Ship From Local", "Ship From Overseas"]
 AFFILIATE_OPTIONS = ["Any", "Yes", "No"]
-LAUNCH_DATE_OPTIONS = ["Any", "Last 7 days", "Last 30 days", "Last 90 days", "Last 180 days"]
+LAUNCH_DATE_OPTIONS = [
+    "Any", "Within 3 Days", "Within 7 Days", "Within 30 Days",
+    "Within 180 Days", "Within 365 Days",
+]
 
 
 st.set_page_config(page_title="KaloData → Veo Pipeline", layout="wide")
@@ -624,13 +624,16 @@ with st.sidebar:
     st.markdown("---")
     st.caption("**Advanced**")
     avg_price_label = st.selectbox("Avg. Unit Price($)", list(AVG_UNIT_PRICE_BUCKETS.keys()), index=0)
+    min_avg_price = AVG_UNIT_PRICE_BUCKETS[avg_price_label]
     is_affiliate = st.selectbox("Is Affiliate Product", AFFILIATE_OPTIONS, index=0)
     creator_num_label = st.selectbox("Creator Number", list(CREATOR_NUMBER_BUCKETS.keys()), index=0)
     min_creators = CREATOR_NUMBER_BUCKETS[creator_num_label]
     creator_conv_label = st.selectbox("Creator Conversion Ratio", list(CREATOR_CONVERSION_BUCKETS.keys()), index=0)
+    min_creator_conv = CREATOR_CONVERSION_BUCKETS[creator_conv_label]
     shipping_opt = st.selectbox("Shipping Option", SHIPPING_OPTIONS, index=0)
     launch_date_opt = st.selectbox("Launch Date", LAUNCH_DATE_OPTIONS, index=0)
     commission_label = st.selectbox("Commission Rate", list(COMMISSION_RATE_BUCKETS.keys()), index=0)
+    min_commission = COMMISSION_RATE_BUCKETS[commission_label]
 
     st.markdown("---")
     search_clicked_bottom = st.button(
@@ -666,12 +669,25 @@ def _run_search() -> None:
         "--min-sales", str(int(min_sales)),
         "--min-growth", str(int(min_growth)),
         "--min-creators", str(int(min_creators)),
+        "--min-avg-price", str(int(min_avg_price)),
+        "--min-creator-conv", str(int(min_creator_conv)),
+        "--min-commission", str(int(min_commission)),
         "--max-results", str(int(max_results)),
         "--out-dir", str(SCRAPE_OUT_DIR),
         "--no-open",
     ]
     if category and category != "All categories":
         cmd += ["--category", category]
+    # Named-option Advanced filters — only pass when the user picked a real
+    # value (not the "Any" default).
+    for flag, val in (
+        ("--revenue-source-channel", rev_src_channel),
+        ("--is-affiliate", is_affiliate),
+        ("--shipping-option", shipping_opt),
+        ("--launch-date", launch_date_opt),
+    ):
+        if val and val != "Any":
+            cmd += [flag, val]
     if not headed:
         cmd.append("--headless")
 

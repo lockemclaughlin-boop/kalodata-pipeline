@@ -54,7 +54,14 @@ class Filters:
     min_gmv_usd: float = 0
     min_sales: int = 0
     min_growth_pct: float = 0
-    min_creators: int = 0   # Creator Number filter — minimum creators promoting
+    min_creators: int = 0          # Creator Number — min creators promoting
+    min_avg_price: float = 0       # Avg. Unit Price($) — min USD
+    min_creator_conv: float = 0    # Creator Conversion Ratio — min %
+    min_commission_pct: float = 0  # Commission Rate — min %
+    revenue_source_channel: str = ""  # "" | Self-Operated Accounts | Affiliate | Shopping Mall
+    is_affiliate: str = ""         # "" | Yes | No
+    shipping_option: str = ""      # "" | Ship From Local | Ship From Overseas
+    launch_date: str = ""          # "" | Within 3/7/30/180/365 Days
 
 
 @dataclass
@@ -529,6 +536,13 @@ def _apply_filters(page: Page, filters: Filters) -> None:
     _set_min_bucket(page, "Item Sold", filters.min_sales, _ITEM_SOLD_BUCKETS)
     _set_min_bucket(page, "Revenue Growth Rate", filters.min_growth_pct, _GROWTH_BUCKETS)
     _set_min_bucket(page, "Creator Number", filters.min_creators, _CREATOR_BUCKETS)
+    _set_min_bucket(page, "Avg. Unit Price($)", filters.min_avg_price, _AVG_PRICE_BUCKETS)
+    _set_min_bucket(page, "Creator Conversion Ratio", filters.min_creator_conv, _CREATOR_CONV_BUCKETS)
+    _set_min_bucket(page, "Commission Rate", filters.min_commission_pct, _COMMISSION_BUCKETS)
+    _set_option(page, "Revenue Source(Channel)", filters.revenue_source_channel)
+    _set_option(page, "Is Affiliate Product", filters.is_affiliate)
+    _set_option(page, "Shipping Option", filters.shipping_option)
+    _set_option(page, "Launch Date", filters.launch_date)
     _click_filter_rail_submit(page)
 
 
@@ -600,6 +614,28 @@ _CREATOR_BUCKETS = [
     (50,  ["50-200"]),
     (10,  ["10-50"]),
     (1,   ["<10"]),
+]
+# Avg. Unit Price($) brackets — <5, 5-20, 20-100, >100. Verified 2026-05-21.
+_AVG_PRICE_BUCKETS = [
+    (100, [">100"]),
+    (20,  ["20-100"]),
+    (5,   ["5-20"]),
+    (1,   ["<5"]),
+]
+# Creator Conversion Ratio brackets — <20%, 20%-45%, 45%-75%, 75%-100%.
+_CREATOR_CONV_BUCKETS = [
+    (75, ["75%-100%"]),
+    (45, ["45%-75%"]),
+    (20, ["20%-45%"]),
+    (1,  ["<20%"]),
+]
+# Commission Rate brackets — <10%, 10%-15%, 15%-20%, 20%-30%, >30%.
+_COMMISSION_BUCKETS = [
+    (30, [">30%"]),
+    (20, ["20%-30%"]),
+    (15, ["15%-20%"]),
+    (10, ["10%-15%"]),
+    (1,  ["<10%"]),
 ]
 
 
@@ -758,6 +794,27 @@ def _set_min_bucket(
         print(f"[filters] {filter_label} → {chosen_labels[0]}", flush=True)
     except Exception as e:
         print(f"[filters] could not set {filter_label}={v}: {e}", flush=True)
+
+
+def _set_option(page: Page, filter_label: str, choice: str) -> None:
+    """Click a named-option filter (Revenue Source, Is Affiliate, Shipping
+    Option, Launch Date) and pick `choice` from its dropdown menu. `choice` is
+    Kalodata's exact on-screen option text; an empty string means 'no filter'."""
+    if not choice:
+        return
+    try:
+        page.get_by_text(filter_label, exact=True).first.click(timeout=4000)
+        _human_pause(0.5, 1.0)
+        try:
+            page.get_by_role("menuitem", name=choice, exact=True).first.click(timeout=3000)
+        except Exception:
+            # Fallback: plain text match inside whatever popover opened.
+            page.get_by_text(choice, exact=True).first.click(timeout=3000)
+        _human_pause(0.3, 0.6)
+        _click_popover_apply(page)
+        print(f"[filters] {filter_label} → {choice}", flush=True)
+    except Exception as e:
+        print(f"[filters] could not set {filter_label}={choice}: {e}", flush=True)
 
 
 _BG_IMAGE_URL_RE = re.compile(r'url\((?:"|\')?([^"\')]+)(?:"|\')?\)')
