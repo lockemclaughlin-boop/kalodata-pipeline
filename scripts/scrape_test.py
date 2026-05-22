@@ -48,6 +48,8 @@ def main() -> None:
     ap.add_argument("--min-gmv", type=float, default=10000)
     ap.add_argument("--min-sales", type=int, default=100)
     ap.add_argument("--min-growth", type=float, default=0)
+    ap.add_argument("--min-creators", type=int, default=0,
+                    help="Creator Number filter — minimum creators promoting (0 = no filter).")
     ap.add_argument("--max-results", type=int, default=50)
     ap.add_argument(
         "--out-dir",
@@ -87,6 +89,7 @@ def main() -> None:
         min_gmv_usd=args.min_gmv,
         min_sales=args.min_sales,
         min_growth_pct=args.min_growth,
+        min_creators=args.min_creators,
     )
     print(f"[smoke] filters: {filters}")
 

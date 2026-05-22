@@ -54,6 +54,7 @@ class Filters:
     min_gmv_usd: float = 0
     min_sales: int = 0
     min_growth_pct: float = 0
+    min_creators: int = 0   # Creator Number filter — minimum creators promoting
 
 
 @dataclass
@@ -527,6 +528,7 @@ def _apply_filters(page: Page, filters: Filters) -> None:
     _set_min_bucket(page, "Revenue($)", filters.min_gmv_usd, _REVENUE_BUCKETS)
     _set_min_bucket(page, "Item Sold", filters.min_sales, _ITEM_SOLD_BUCKETS)
     _set_min_bucket(page, "Revenue Growth Rate", filters.min_growth_pct, _GROWTH_BUCKETS)
+    _set_min_bucket(page, "Creator Number", filters.min_creators, _CREATOR_BUCKETS)
     _click_filter_rail_submit(page)
 
 
@@ -590,6 +592,14 @@ _GROWTH_BUCKETS = [
     (70,  [">70%"]),
     (30,  [">30%"]),
     (1,   [">0%"]),
+]
+# Creator Number brackets — Kalodata shows: <10, 10-50, 50-200, >200.
+# Verified against the live filter popover 2026-05-21.
+_CREATOR_BUCKETS = [
+    (200, [">200"]),
+    (50,  ["50-200"]),
+    (10,  ["10-50"]),
+    (1,   ["<10"]),
 ]
 
 

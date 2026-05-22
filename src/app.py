@@ -626,6 +626,7 @@ with st.sidebar:
     avg_price_label = st.selectbox("Avg. Unit Price($)", list(AVG_UNIT_PRICE_BUCKETS.keys()), index=0)
     is_affiliate = st.selectbox("Is Affiliate Product", AFFILIATE_OPTIONS, index=0)
     creator_num_label = st.selectbox("Creator Number", list(CREATOR_NUMBER_BUCKETS.keys()), index=0)
+    min_creators = CREATOR_NUMBER_BUCKETS[creator_num_label]
     creator_conv_label = st.selectbox("Creator Conversion Ratio", list(CREATOR_CONVERSION_BUCKETS.keys()), index=0)
     shipping_opt = st.selectbox("Shipping Option", SHIPPING_OPTIONS, index=0)
     launch_date_opt = st.selectbox("Launch Date", LAUNCH_DATE_OPTIONS, index=0)
@@ -664,6 +665,7 @@ def _run_search() -> None:
         "--min-gmv", str(int(min_gmv)),
         "--min-sales", str(int(min_sales)),
         "--min-growth", str(int(min_growth)),
+        "--min-creators", str(int(min_creators)),
         "--max-results", str(int(max_results)),
         "--out-dir", str(SCRAPE_OUT_DIR),
         "--no-open",
