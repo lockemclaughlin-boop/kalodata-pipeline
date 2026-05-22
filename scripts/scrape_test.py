@@ -68,10 +68,13 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    storage = Path(".auth/kalodata.json")
-    if not storage.exists():
+    # The login flow stores the session in a persistent Chrome profile, not a
+    # storage-state JSON. Check for that profile directory.
+    storage = Path(".auth/kalodata.json")  # legacy arg, still passed for back-compat
+    profile_dir = Path(".auth/chrome-profile")
+    if not profile_dir.exists():
         sys.exit(
-            f"No Kalodata session at {storage}. Run scripts/login_kalodata.py first."
+            f"No Kalodata session at {profile_dir}. Run scripts/login_kalodata.py first."
         )
 
     out_root = Path(args.out_dir)

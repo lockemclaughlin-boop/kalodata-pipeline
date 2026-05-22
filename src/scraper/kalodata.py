@@ -344,6 +344,32 @@ _TIME_WINDOW_LABELS = {
 }
 
 
+def _extract_visible_rows(
+    page: Page,
+    headers: list[str],
+    max_results: int,
+    seen_ids: set[str],
+) -> list["Product"]:
+    """Read every product row currently in the DOM into Product objects.
+    Each Product is fully materialized at read time, so the list survives
+    later DOM changes (e.g. a page-size reload)."""
+    out: list[Product] = []
+    rows = page.locator(S.PRODUCT_ROW)
+    n = rows.count()
+    for i in range(n):
+        if len(out) >= max_results:
+            break
+        try:
+            p_obj = _extract_product_from_row(rows.nth(i), headers)
+        except Exception:
+            continue
+        if p_obj is None or p_obj.id in seen_ids:
+            continue
+        seen_ids.add(p_obj.id)
+        out.append(p_obj)
+    return out
+
+
 def search_products(
     filters: Filters,
     storage_state_path: Path,
@@ -425,47 +451,63 @@ def search_products(
                     # Re-wait for rows in case the manual filter change reloaded them.
                     _wait_for_products_page(page, headed=headed, timeout_s=60)
 
-            # Bump Kalodata's "10 / page" default up so a single page covers
-            # what the user asked for (Kalodata typically offers 10/20/50/100).
-            for candidate in (100, 50, 20):
-                if candidate >= max_results:
-                    if _set_page_size(page, candidate):
-                        break
-
             headers = _read_table_headers(page)
 
-            # Single-page scrape only. Kalodata's free tier paywalls
-            # everything past page 1 with an "Upgrade to view the data"
-            # modal, and clicking Next + scrolling to reach pagination
-            # just triggers that gate. Take whatever's visible after Submit.
+            # Extract whatever's visible at Kalodata's default page size FIRST.
+            # This is the known-good state — filters applied, table rendered.
+            # We capture it BEFORE touching the page-size control so a failed
+            # bump can never lose these rows. Product objects are fully
+            # materialized here, so they survive a later table reload.
             seen_ids: set[str] = set()
-            rows = page.locator(S.PRODUCT_ROW)
-            row_count = rows.count()
-            if row_count == 0:
-                print("[scrape] no rows visible, stopping", flush=True)
-            else:
-                for i in range(row_count):
-                    if len(products) >= max_results:
-                        break
-                    row = rows.nth(i)
-                    p_obj = _extract_product_from_row(row, headers)
-                    if p_obj is None or p_obj.id in seen_ids:
+            products = _extract_visible_rows(page, headers, max_results, seen_ids)
+            print(
+                f"[scrape] default page: captured {len(products)}/{max_results}",
+                flush=True,
+            )
+
+            # If the user wants more than one default page holds, try bumping
+            # the page size. On free-tier accounts the bump empties the table
+            # (they're capped at 10/page server-side) — if that happens we
+            # simply keep the default-page results captured above.
+            if len(products) < max_results:
+                for candidate in (100, 50, 20):
+                    if candidate < max_results:
                         continue
-                    seen_ids.add(p_obj.id)
-                    products.append(p_obj)
+                    if not _set_page_size(page, candidate):
+                        break
+                    # The bump reloads the table via XHR — wait for rows.
+                    deadline = time.time() + 25
+                    while time.time() < deadline:
+                        if page.locator(S.PRODUCT_ROW).count() > 0:
+                            break
+                        time.sleep(1.5)
+                    bigger = _extract_visible_rows(
+                        page, headers, max_results, set()
+                    )
+                    if len(bigger) > len(products):
+                        products = bigger
+                        print(
+                            f"[scrape] page-size bump → captured "
+                            f"{len(products)}/{max_results}",
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            "[scrape] page-size bump returned no extra rows "
+                            "(free-tier 10-cap) — keeping the default page",
+                            flush=True,
+                        )
+                    break
+
+            if not products:
+                print("[scrape] no rows visible, stopping", flush=True)
+            elif len(products) < max_results and len(products) >= 10:
                 print(
-                    f"[scrape] page 1: rows={row_count}, "
-                    f"captured={len(products)}/{max_results}",
+                    f"[scrape] Kalodata's free tier caps results at "
+                    f"~{len(products)} per query. Run another search with "
+                    f"different filters for a different set.",
                     flush=True,
                 )
-                if len(products) < max_results and row_count >= 10:
-                    print(
-                        f"[scrape] Kalodata's free tier caps results at "
-                        f"~{len(products)} per query (paywall modal on "
-                        f"pagination). Run another search with different "
-                        f"filters for a different set.",
-                        flush=True,
-                    )
         finally:
             context.close()
 
