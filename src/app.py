@@ -503,33 +503,41 @@ GROWTH_BUCKETS = {
 REVENUE_SOURCE_CONTENT_OPTIONS = ["Any", "Video", "Live", "Product Card"]
 REVENUE_SOURCE_CHANNEL_OPTIONS = ["Any", "Self-Operated Accounts", "Affiliate", "Shopping Mall"]
 
+# Labels match Kalodata's actual bracket text exactly so what the user picks
+# is what the scraper clicks. Values are representative numbers that fall
+# inside each bracket — the scraper's _set_min_bucket walks its bucket list
+# and clicks the first bracket whose floor that value satisfies.
 AVG_UNIT_PRICE_BUCKETS = {
-    "Any":   0,
-    "$5+":   5,
-    "$20+":  20,
-    "$100+": 100,
+    "Any":       0,
+    "<$5":       1,
+    "$5-$20":    5,
+    "$20-$100":  20,
+    ">$100":     100,
 }
 
 COMMISSION_RATE_BUCKETS = {
-    "Any":   0,
-    "10%+":  10,
-    "15%+":  15,
-    "20%+":  20,
-    "30%+":  30,
+    "Any":       0,
+    "<10%":      1,
+    "10%-15%":   10,
+    "15%-20%":   15,
+    "20%-30%":   20,
+    ">30%":      30,
 }
 
 CREATOR_NUMBER_BUCKETS = {
-    "Any":   0,
-    "10+":   10,
-    "50+":   50,
-    "200+":  200,
+    "Any":      0,
+    "<10":      1,
+    "10-50":    10,
+    "50-200":   50,
+    ">200":     200,
 }
 
 CREATOR_CONVERSION_BUCKETS = {
-    "Any":   0,
-    "20%+":  20,
-    "45%+":  45,
-    "75%+":  75,
+    "Any":        0,
+    "<20%":       1,
+    "20%-45%":    20,
+    "45%-75%":    45,
+    "75%-100%":   75,
 }
 
 SHIPPING_OPTIONS = ["Any", "Ship From Local", "Ship From Overseas"]
