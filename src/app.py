@@ -500,7 +500,7 @@ GROWTH_BUCKETS = {
 # Option/bucket lists below mirror Kalodata's ACTUAL filter popovers
 # (verified against the live UI 2026-05-21). The bucket-dict values are
 # minimum thresholds; the scraper maps them onto Kalodata's coarse brackets.
-REVENUE_SOURCE_CONTENT_OPTIONS = ["Any", "Video", "LIVE", "Product Card"]  # not wired — non-standard widget
+REVENUE_SOURCE_CONTENT_OPTIONS = ["Any", "Video", "Live", "Product Card"]
 REVENUE_SOURCE_CHANNEL_OPTIONS = ["Any", "Self-Operated Accounts", "Affiliate", "Shopping Mall"]
 
 AVG_UNIT_PRICE_BUCKETS = {
@@ -681,6 +681,7 @@ def _run_search() -> None:
     # Named-option Advanced filters — only pass when the user picked a real
     # value (not the "Any" default).
     for flag, val in (
+        ("--revenue-source-content", rev_src_content),
         ("--revenue-source-channel", rev_src_channel),
         ("--is-affiliate", is_affiliate),
         ("--shipping-option", shipping_opt),

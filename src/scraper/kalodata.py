@@ -58,6 +58,7 @@ class Filters:
     min_avg_price: float = 0       # Avg. Unit Price($) — min USD
     min_creator_conv: float = 0    # Creator Conversion Ratio — min %
     min_commission_pct: float = 0  # Commission Rate — min %
+    revenue_source_content: str = ""  # "" | Video | Live | Product Card
     revenue_source_channel: str = ""  # "" | Self-Operated Accounts | Affiliate | Shopping Mall
     is_affiliate: str = ""         # "" | Yes | No
     shipping_option: str = ""      # "" | Ship From Local | Ship From Overseas
@@ -530,6 +531,7 @@ def _apply_filters(page: Page, filters: Filters) -> None:
     picks we click the big Submit button at the bottom of the rail, which is
     what actually re-runs the search against Kalodata's API.
     """
+    _set_region(page, filters.region)
     _set_time_window(page, filters.time_window)
     _set_category(page, filters.category)
     _set_min_bucket(page, "Revenue($)", filters.min_gmv_usd, _REVENUE_BUCKETS)
@@ -539,6 +541,7 @@ def _apply_filters(page: Page, filters: Filters) -> None:
     _set_min_bucket(page, "Avg. Unit Price($)", filters.min_avg_price, _AVG_PRICE_BUCKETS)
     _set_min_bucket(page, "Creator Conversion Ratio", filters.min_creator_conv, _CREATOR_CONV_BUCKETS)
     _set_min_bucket(page, "Commission Rate", filters.min_commission_pct, _COMMISSION_BUCKETS)
+    _set_revenue_source_content(page, filters.revenue_source_content)
     _set_option(page, "Revenue Source(Channel)", filters.revenue_source_channel)
     _set_option(page, "Is Affiliate Product", filters.is_affiliate)
     _set_option(page, "Shipping Option", filters.shipping_option)
@@ -639,6 +642,107 @@ _COMMISSION_BUCKETS = [
 ]
 
 
+# Region codes the dashboard offers → Kalodata's on-screen country labels.
+# Kalodata follows TikTok Shop's launched markets, so the label set is stable
+# enough to hard-code. Verify against the live picker via dump_kalodata_dom.py
+# if Kalodata onboards a new region.
+_REGION_LABELS = {
+    "US": "United States",
+    "UK": "United Kingdom",
+    "ID": "Indonesia",
+    "MY": "Malaysia",
+    "TH": "Thailand",
+    "VN": "Vietnam",
+    "PH": "Philippines",
+    "SG": "Singapore",
+    "MX": "Mexico",
+    "BR": "Brazil",
+}
+
+
+def _set_region(page: Page, region_code: str) -> None:
+    """
+    Switch Kalodata's region picker to `region_code`. The picker lives at the
+    top-right of the product page as `<div id="region-dropdown">` with the
+    current country label inside `<div id="regionName">`. Both IDs are stable.
+
+    Must run BEFORE the other filter helpers: switching country refilters the
+    whole table and would clobber any previously-staged picks.
+    """
+    label = _REGION_LABELS.get((region_code or "").upper())
+    if not label:
+        print(f"[filters] unknown region code {region_code!r}; skipping", flush=True)
+        return
+
+    try:
+        dropdown = page.locator("#region-dropdown").first
+        if dropdown.count() == 0:
+            print(
+                "[filters] #region-dropdown not found on page; skipping (current "
+                "Chrome-profile region will be used)",
+                flush=True,
+            )
+            return
+
+        try:
+            current = page.locator("#regionName").first.inner_text().strip()
+        except Exception:
+            current = ""
+        if current == label:
+            print(f"[filters] region already {label}; skipping", flush=True)
+            return
+
+        dropdown.click(timeout=4000)
+        _human_pause(0.5, 1.0)
+
+        # The popover that opens uses Ant's dropdown/popover container. Scope
+        # the country click to the visible one so we never collide with the
+        # off-screen pre-render copies of country names that Kalodata keeps in
+        # the DOM (those would fail to click since they're at top=-9999).
+        popover = page.locator(
+            ".ant-popover:not(.ant-popover-hidden), "
+            ".ant-dropdown:not(.ant-dropdown-hidden), "
+            "div[role='dialog'], "
+            "div[role='listbox']"
+        ).first
+
+        clicked = False
+        if popover.count() > 0:
+            try:
+                popover.get_by_text(label, exact=True).first.click(timeout=3000)
+                clicked = True
+            except Exception:
+                pass
+        if not clicked:
+            # Last resort: menuitem role (Ant Menu items expose this).
+            try:
+                page.get_by_role("menuitem", name=label, exact=True).first.click(timeout=3000)
+                clicked = True
+            except Exception:
+                pass
+        if not clicked:
+            print(
+                f"[filters] could not click region option {label!r} inside picker; skipping",
+                flush=True,
+            )
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
+            return
+
+        _human_pause(0.4, 0.8)
+        # Region picker may or may not need an explicit Apply — call the
+        # helper anyway; it falls back to Escape if no Apply button is active.
+        _click_popover_apply(page)
+        print(f"[filters] region → {label}", flush=True)
+        # Region switches refilter the table — give Kalodata a beat to reload
+        # before subsequent filter helpers fire.
+        page.wait_for_timeout(1800)
+    except Exception as e:
+        print(f"[filters] could not set region={region_code}: {e}", flush=True)
+
+
 def _set_time_window(page: Page, time_window: str) -> None:
     target = {
         "last_24_hours": "Last 24 hours",
@@ -653,9 +757,11 @@ def _set_time_window(page: Page, time_window: str) -> None:
         _human_pause(0.5, 1)
         page.get_by_text(target, exact=False).first.click(timeout=4000)
         _human_pause(0.5, 1)
-        # Kalodata changed behavior 2026-05: popover selections must be
-        # committed with Apply or they get discarded on close. Helper falls
-        # back to Escape if no Apply button is present.
+        # Per-popover Apply is required — closing without it discards the
+        # selection (verified 2026-05-23 by running a deferred-Apply A/B; the
+        # bucket and option filters returned unfiltered results). The cost is
+        # that Apply fires a search per filter; the rail-level Submit fires
+        # one more search at the end.
         _click_popover_apply(page)
         print(f"[filters] time window → {target}", flush=True)
     except Exception as e:
@@ -692,10 +798,7 @@ def _set_category(page: Page, category: Optional[str]) -> None:
             item.click(force=True, timeout=4000)
 
         _human_pause(0.4, 0.8)
-        # Kalodata changed behavior 2026-05: cascader selections must be
-        # committed with Apply/Confirm or they get discarded on Escape.
-        # _click_popover_apply falls back to Escape if no Apply button is
-        # active, so this stays safe on the old UI too.
+        # Apply required — see _set_time_window for the rationale.
         _click_popover_apply(page)
         print(f"[filters] category → {category}", flush=True)
     except Exception as e:
@@ -787,13 +890,87 @@ def _set_min_bucket(
             return
 
         _human_pause(0.3, 0.6)
-        # Kalodata changed behavior 2026-05: bucket selections in the popover
-        # must be committed with Apply or they vanish on close. Helper falls
-        # back to Escape if no Apply button is active.
+        # Apply required — bucket selections vanish without it.
         _click_popover_apply(page)
         print(f"[filters] {filter_label} → {chosen_labels[0]}", flush=True)
     except Exception as e:
         print(f"[filters] could not set {filter_label}={v}: {e}", flush=True)
+
+
+# Dashboard accepts a few label variants for the LIVE option (the old comment
+# in app.py used "LIVE"); Kalodata renders it as "Live". Normalize here so the
+# helper accepts either.
+_REV_SRC_CONTENT_LABELS = {
+    "video": "Video",
+    "live": "Live",
+    "product card": "Product Card",
+}
+
+
+def _set_revenue_source_content(page: Page, choice: str) -> None:
+    """
+    Pick one content source (Video | Live | Product Card) in Kalodata's
+    Revenue Source(Content) popover.
+
+    Differs from _set_option because the options are Ant checkboxes inside a
+    custom `.dropdown-render` container (multi-select capable), not a single
+    menuitem list. We pick exactly one box — single-select semantics from the
+    dashboard side — and commit with Apply.
+    """
+    if not choice:
+        return
+    label = _REV_SRC_CONTENT_LABELS.get(choice.strip().lower())
+    if not label:
+        print(f"[filters] unknown Revenue Source(Content)={choice!r}; skipping", flush=True)
+        return
+    try:
+        page.get_by_text("Revenue Source(Content)", exact=True).first.click(timeout=4000)
+        _human_pause(0.5, 1.0)
+        popover = page.locator(".ant-popover:not(.ant-popover-hidden)").first
+        if popover.count() == 0:
+            print(
+                "[filters] Revenue Source(Content) popover did not open; skipping",
+                flush=True,
+            )
+            return
+
+        # Find the checkbox row by its label text. Each option's visible text
+        # is in a <span class="ant-checkbox-label">; scope the click to the
+        # surrounding row so the click target is the whole row (Kalodata wires
+        # the click handler there, not on the checkbox input directly).
+        row = popover.locator("label.ant-checkbox-wrapper", has_text=label).first
+        clicked = False
+        if row.count() > 0:
+            try:
+                row.click(timeout=3000)
+                clicked = True
+            except Exception:
+                pass
+        if not clicked:
+            try:
+                popover.get_by_text(label, exact=True).first.click(timeout=3000)
+                clicked = True
+            except Exception:
+                pass
+        if not clicked:
+            print(
+                f"[filters] could not click Revenue Source(Content)={label!r}; skipping",
+                flush=True,
+            )
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
+            return
+
+        _human_pause(0.3, 0.6)
+        _click_popover_apply(page)
+        print(f"[filters] Revenue Source(Content) → {label}", flush=True)
+    except Exception as e:
+        print(
+            f"[filters] could not set Revenue Source(Content)={choice}: {e}",
+            flush=True,
+        )
 
 
 def _set_option(page: Page, filter_label: str, choice: str) -> None:

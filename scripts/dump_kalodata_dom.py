@@ -54,6 +54,48 @@ def _safe_html(page, selector: str, limit: int = 8000) -> list[str]:
     return out
 
 
+def _probe_region(page) -> dict:
+    """
+    Snapshot Kalodata's region picker. The pill is `<div id="region-dropdown">`
+    at the top-right of the product page; the current country label sits
+    inside `<div id="regionName">`. Both IDs verified via scripts/probe_region.py.
+    """
+    info: dict = {"label": "region", "popover": []}
+    try:
+        dropdown = page.locator("#region-dropdown").first
+        if dropdown.count() == 0:
+            info["error"] = "#region-dropdown not present"
+            return info
+        info["pill_outer_html"] = dropdown.evaluate("el => el.outerHTML")[:2500]
+        try:
+            info["current_region"] = page.locator("#regionName").first.inner_text().strip()
+        except Exception:
+            info["current_region"] = ""
+        dropdown.click(timeout=4000)
+        page.wait_for_timeout(700)
+    except Exception as e:
+        info["error"] = f"could not open region picker: {e}"
+        return info
+
+    for sel in (
+        ".ant-popover:not(.ant-popover-hidden)",
+        ".ant-dropdown:not(.ant-dropdown-hidden)",
+        "div[role='dialog']",
+        "div[role='listbox']",
+    ):
+        html = _safe_html(page, sel, limit=12000)
+        if html:
+            info["popover_selector"] = sel
+            info["popover"] = html
+            break
+    try:
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+    except Exception:
+        pass
+    return info
+
+
 def _probe_filter(page, label: str) -> dict:
     """Click a filter label, snapshot any popover that opens, close it."""
     info: dict = {"label": label, "label_outer_html": [], "popover": []}
@@ -133,11 +175,14 @@ def main() -> None:
         dump["row_count_initial"] = page.locator(S.PRODUCT_ROW).count()
 
         # 4. Probe each filter that opens a popover. Order matters — popovers
-        # close on Escape between probes.
+        # close on Escape between probes. Region first because it's a
+        # different widget shape (country pill, not a labeled rail row).
         dump["probes"] = {}
+        dump["probes"]["region"] = _probe_region(page)
         for label in (
             "Revenue($)",
             "Item Sold",
+            "Revenue Source(Content)",
             "Revenue Growth Rate",
             "Avg. Unit Price($)",
             "Commission Rate",

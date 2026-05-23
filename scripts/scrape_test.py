@@ -56,6 +56,8 @@ def main() -> None:
                     help="Creator Conversion Ratio filter — minimum %% (0 = no filter).")
     ap.add_argument("--min-commission", type=float, default=0,
                     help="Commission Rate filter — minimum %% (0 = no filter).")
+    ap.add_argument("--revenue-source-content", default="",
+                    help="Revenue Source(Content): Video | Live | Product Card")
     ap.add_argument("--revenue-source-channel", default="",
                     help="Revenue Source(Channel): Self-Operated Accounts | Affiliate | Shopping Mall")
     ap.add_argument("--is-affiliate", default="",
@@ -107,6 +109,7 @@ def main() -> None:
         min_avg_price=args.min_avg_price,
         min_creator_conv=args.min_creator_conv,
         min_commission_pct=args.min_commission,
+        revenue_source_content=args.revenue_source_content,
         revenue_source_channel=args.revenue_source_channel,
         is_affiliate=args.is_affiliate,
         shipping_option=args.shipping_option,
